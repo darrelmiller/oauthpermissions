@@ -1,8 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
 namespace Kibali
@@ -48,6 +47,29 @@ namespace Kibali
         public static PermissionsDocument Load(JsonDocument doc)
         {
             return Load(doc.RootElement);
+        }
+
+        public static PermissionsDocument LoadAndMerge(string documentPath)
+        {
+            var mergedDoc = new PermissionsDocument();
+            foreach(var permissionsFile in Directory.EnumerateFiles(documentPath, "*.json"))
+            {
+                try
+                {
+                    var doc = Load(new FileStream(permissionsFile, FileMode.Open));
+                    mergedDoc.Permissions = mergedDoc.Permissions.Concat(doc.Permissions).ToDictionary(x => x.Key, x => x.Value);
+                }
+                catch
+                {
+                    if (permissionsFile.EndsWith("permissionsSchema.json"))
+                    {
+                        continue;
+                    }
+                    throw;
+                }
+                
+            }
+            return mergedDoc;
         }
 
         public static PermissionsDocument Load(JsonElement value)

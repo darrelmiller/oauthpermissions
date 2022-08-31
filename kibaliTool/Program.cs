@@ -27,18 +27,26 @@ namespace KibaliTool
                 QueryCommandBinder.PermissionFileOption,
                 QueryCommandBinder.UrlOption,
                 QueryCommandBinder.MethodOption,
-                QueryCommandBinder.SchemeOption
+                QueryCommandBinder.SchemeOption,
             };
             
             queryCommand.SetHandler(QueryCommand.Execute, new QueryCommandBinder());
             
             Command exportCommand = new Command("export");
-            
+
+            Command validateCommand = new Command("validate") {
+                ValidateCommandBinder.PermissionFileOption,
+                ValidateCommandBinder.PermissionFolderOption,
+            };
+
+            validateCommand.SetHandler(ValidateCommand.Execute, new ValidateCommandBinder());
+
             var rootCommand = new RootCommand()
             {
                 importCommand,
                 queryCommand,
-                exportCommand
+                exportCommand,
+                validateCommand
             };
             
 
@@ -93,7 +101,23 @@ namespace KibaliTool
                 SourcePermissionsFile = bindingContext.ParseResult.GetValueForOption(PermissionFileOption),
                 Url = bindingContext.ParseResult.GetValueForOption(UrlOption),
                 Method = bindingContext.ParseResult.GetValueForOption(MethodOption),
-                Scheme = bindingContext.ParseResult.GetValueForOption(SchemeOption)
+                Scheme = bindingContext.ParseResult.GetValueForOption(SchemeOption),
+            };
+        }
+    }
+
+
+    internal class ValidateCommandBinder : BinderBase<ValidateCommandParameters>
+    {
+        public static Option<string> PermissionFileOption = new(new[] { "--sourcePermissionFile", "--pf" }, "Permission File");
+        public static Option<string> PermissionFolderOption = new(new[] { "--sourcePermissionsFolder", "--fo" }, "Permission Folder");
+
+        protected override ValidateCommandParameters GetBoundValue(BindingContext bindingContext)
+        {
+            return new ValidateCommandParameters()
+            {
+                SourcePermissionsFile = bindingContext.ParseResult.GetValueForOption(PermissionFileOption),
+                SourcePermissionsFolder = bindingContext.ParseResult.GetValueForOption(PermissionFolderOption),
             };
         }
     }

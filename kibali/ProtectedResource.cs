@@ -1,6 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
+﻿using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 
 namespace Kibali
@@ -12,14 +11,19 @@ namespace Kibali
         // target -> restrictions -> schemes -> Ordered Permissions (CSDL Format) 
 
         // path -> Method -> Schemes -> Permissions  (Inverted format) 
-        
+
         // (Path, Method) -> Schemes -> Permissions (Docs)
         // (Path, Method) -> Scheme(delegated) -> Permissions (Graph Explorer Tab)
         // Permissions(delegated) (Graph Explorer Permissions List)
         // Schemas -> Permissions ( AAD Onboarding)
+        private Dictionary<string, Dictionary<string, HashSet<string>>> leastPrivilegedPermissions { get; set; } = new ();
 
         public string Url { get; set; }
-        public Dictionary<string, Dictionary<string,List<AcceptableClaim>>> SupportedMethods { get; set; } = new Dictionary<string, Dictionary<string, List<AcceptableClaim>>>();
+        public Dictionary<string, Dictionary<string, List<AcceptableClaim>>> SupportedMethods { get; set; } = new Dictionary<string, Dictionary<string, List<AcceptableClaim>>>();
+
+        public bool ContainsErrors = false;
+
+        public HashSet<PermissionsError> PermissionsErrors { get; set; } = new ();
 
         public ProtectedResource(string url)
         {
@@ -46,6 +50,98 @@ namespace Kibali
                 {
                     Update(this.SupportedMethods[supportedMethod], supportedSchemes);
                 };
+            }
+        }
+
+        public void ValidateLeastPrivilegePermissions(string permission, PathSet pathSet, List<string> leastPrivilegedPermissions, int index)
+        {
+            ComputeLeastPrivilegeEntries(permission, pathSet, leastPrivilegedPermissions);
+            ValidateMismatchedSchemes(permission, pathSet, leastPrivilegedPermissions, index);
+            ValidateDuplicatedScopes(permission, index);
+        }
+
+        private void ComputeLeastPrivilegeEntries(string permission, PathSet pathSet, List<string> leastPrivilegedPermissions)
+        {
+            foreach (var supportedMethod in pathSet.Methods)
+            {
+                var schemeLeastPrivilegeScopes = new Dictionary<string, HashSet<string>>();
+                foreach (var supportedScheme in pathSet.SchemeKeys)
+                {
+                    if (!leastPrivilegedPermissions.Contains(supportedScheme))
+                    {
+                        continue;
+                    }
+                    if (!schemeLeastPrivilegeScopes.ContainsKey(supportedScheme))
+                    {
+                        schemeLeastPrivilegeScopes.Add(supportedScheme, new HashSet<string>());
+                    }
+                    schemeLeastPrivilegeScopes[supportedScheme].Add(permission);
+                }
+                if (!this.leastPrivilegedPermissions.ContainsKey(supportedMethod))
+                {
+                    this.leastPrivilegedPermissions.Add(supportedMethod, schemeLeastPrivilegeScopes);
+                }
+                else
+                {
+                    UpdatePrivilegedPermissions(this.leastPrivilegedPermissions[supportedMethod], schemeLeastPrivilegeScopes, supportedMethod);
+                };
+            }
+        }
+
+        private void ValidateDuplicatedScopes(string permission, int index)
+        {
+            foreach (var methodScopes in this.leastPrivilegedPermissions)
+            {
+                var method = methodScopes.Key;
+                foreach (var schemeScope in methodScopes.Value)
+                {
+                    var scopes = schemeScope.Value;
+                    var scheme = schemeScope.Key;
+                    if (scopes.Count > 1)
+                    {
+                        this.PermissionsErrors.Add(new PermissionsError
+                        {
+                            Path = this.Url,
+                            ErrorCode = PermissionsErrorCode.DuplicateLeastPrivilegeScopes,
+                            Message = string.Format(StringConstants.DuplicateLeastPrivilegeSchemeErrorMessage, string.Join(", ", scopes), scheme, method),
+                        });
+                        this.ContainsErrors = true;
+                    }
+                }
+            }
+            
+        }
+
+        private void ValidateMismatchedSchemes(string permission, PathSet pathSet, List<string> leastPrivilegedPermissions, int index)
+        {
+            var mismatchedPrivilegeSchemes = leastPrivilegedPermissions.Except(pathSet.SchemeKeys);
+            if (mismatchedPrivilegeSchemes.Count() > 0)
+            {
+                var invalidSchemes = string.Join(", ", mismatchedPrivilegeSchemes);
+                var expectedSchemes = string.Join(", ", pathSet.SchemeKeys);
+                this.PermissionsErrors.Add(new PermissionsError
+                {
+                    Path = this.Url,
+                    ErrorCode = PermissionsErrorCode.InvalidLeastPrivilegeScheme,
+                    Message = string.Format(StringConstants.UnexpectedLeastPrivilegeSchemeErrorMessage, invalidSchemes, permission, expectedSchemes),
+                });
+                this.ContainsErrors = true;
+            }
+        }
+
+        private void UpdatePrivilegedPermissions(Dictionary<string, HashSet<string>> existingPermissions, Dictionary<string, HashSet<string>> newPermissions, string method)
+        {
+            foreach (var newPermission in newPermissions)
+            {
+                if (existingPermissions.TryGetValue(newPermission.Key, out var existingPermission))
+                {
+                    existingPermission.UnionWith(newPermission.Value);
+                    
+                }
+                else
+                {
+                    existingPermissions[newPermission.Key] = newPermission.Value;
+                }
             }
         }
 
@@ -108,4 +204,6 @@ namespace Kibali
             writer.WriteEndArray();
         }
     }
+
+    
 }
