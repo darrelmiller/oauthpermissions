@@ -91,9 +91,8 @@ namespace Kibali
             // Walk permissions, find each pathSet and add path to dictionary
             foreach (var permission in permissionsDocument.Permissions)
             {
-                for(int index = 0; index < permission.Value.PathSets.Count; index++ )
+                foreach(var pathSet in permission.Value.PathSets)
                 {
-                    var pathSet = permission.Value.PathSets[index];
                     foreach (var path in pathSet.Paths)
                     {
                         ProtectedResource resource;
@@ -107,7 +106,7 @@ namespace Kibali
                             resource = new ProtectedResource(path.Key);
                             resources.Add(path.Key, resource);
                         }
-                        resource.ValidateLeastPrivilegePermissions(permission.Key, pathSet, path.Value.LeastPrivilegedPermission, index);
+                        resource.ValidateLeastPrivilegePermissions(permission.Key, pathSet, path.Value.LeastPrivilegedPermission);
                         this.ContainsErrors |= resource.ContainsErrors;
                         this.Errors.UnionWith(resource.PermissionsErrors);
                     }
@@ -128,7 +127,6 @@ namespace Kibali
                         if (resources.ContainsKey(path.Key))
                         {
                             resource = resources[path.Key];
-
                         }
                         else
                         {

@@ -11,7 +11,6 @@ namespace Kibali
         // target -> restrictions -> schemes -> Ordered Permissions (CSDL Format) 
 
         // path -> Method -> Schemes -> Permissions  (Inverted format) 
-
         // (Path, Method) -> Schemes -> Permissions (Docs)
         // (Path, Method) -> Scheme(delegated) -> Permissions (Graph Explorer Tab)
         // Permissions(delegated) (Graph Explorer Permissions List)
@@ -53,15 +52,15 @@ namespace Kibali
             }
         }
 
-        public void ValidateLeastPrivilegePermissions(string permission, PathSet pathSet, List<string> leastPrivilegedPermissions, int index)
+        public void ValidateLeastPrivilegePermissions(string permission, PathSet pathSet, List<string> leastPrivilegedPermissions)
         {
             ComputeLeastPrivilegeEntries(permission, pathSet, leastPrivilegedPermissions);
-            ValidateMismatchedSchemes(permission, pathSet, leastPrivilegedPermissions, index);
-            ValidateDuplicatedScopes(permission, index);
+            ValidateDuplicatedScopes();
         }
 
         private void ComputeLeastPrivilegeEntries(string permission, PathSet pathSet, List<string> leastPrivilegedPermissions)
         {
+            ValidateMismatchedSchemes(permission, pathSet, leastPrivilegedPermissions);
             foreach (var supportedMethod in pathSet.Methods)
             {
                 var schemeLeastPrivilegeScopes = new Dictionary<string, HashSet<string>>();
@@ -88,7 +87,7 @@ namespace Kibali
             }
         }
 
-        private void ValidateDuplicatedScopes(string permission, int index)
+        private void ValidateDuplicatedScopes()
         {
             foreach (var methodScopes in this.leastPrivilegedPermissions)
             {
@@ -112,10 +111,10 @@ namespace Kibali
             
         }
 
-        private void ValidateMismatchedSchemes(string permission, PathSet pathSet, List<string> leastPrivilegedPermissions, int index)
+        private void ValidateMismatchedSchemes(string permission, PathSet pathSet, List<string> leastPrivilegedPermissions)
         {
             var mismatchedPrivilegeSchemes = leastPrivilegedPermissions.Except(pathSet.SchemeKeys);
-            if (mismatchedPrivilegeSchemes.Count() > 0)
+            if (mismatchedPrivilegeSchemes.Any())
             {
                 var invalidSchemes = string.Join(", ", mismatchedPrivilegeSchemes);
                 var expectedSchemes = string.Join(", ", pathSet.SchemeKeys);
@@ -136,7 +135,6 @@ namespace Kibali
                 if (existingPermissions.TryGetValue(newPermission.Key, out var existingPermission))
                 {
                     existingPermission.UnionWith(newPermission.Value);
-                    
                 }
                 else
                 {

@@ -54,20 +54,8 @@ namespace Kibali
             var mergedDoc = new PermissionsDocument();
             foreach(var permissionsFile in Directory.EnumerateFiles(documentPath, "*.json"))
             {
-                try
-                {
-                    var doc = Load(new FileStream(permissionsFile, FileMode.Open));
-                    mergedDoc.Permissions = mergedDoc.Permissions.Concat(doc.Permissions).ToDictionary(x => x.Key, x => x.Value);
-                }
-                catch
-                {
-                    if (permissionsFile.EndsWith("permissionsSchema.json"))
-                    {
-                        continue;
-                    }
-                    throw;
-                }
-                
+                var doc = Load(new FileStream(permissionsFile, FileMode.Open));
+                mergedDoc.Permissions = mergedDoc.Permissions.Concat(doc.Permissions).ToDictionary(x => x.Key, x => x.Value);
             }
             return mergedDoc;
         }

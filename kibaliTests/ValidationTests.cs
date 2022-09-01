@@ -53,7 +53,7 @@ public class ValidationTests
         authZChecker.Validate(doc);
 
         // Assert
-        Assert.NotEmpty(authZChecker.Errors);
+        Assert.False(authZChecker.ContainsErrors);
     }
     [Fact]
     public void ValidateFolderIsNotValid()
@@ -68,7 +68,7 @@ public class ValidationTests
         // Assert
         Assert.True(authZChecker.ContainsErrors);
         var actualErrors = authZChecker.Errors;
-        Assert.True(actualErrors.Count == 2);
+        Assert.True(actualErrors.Count == 3);
         Assert.Contains(PermissionsErrorCode.DuplicateLeastPrivilegeScopes, actualErrors.Select(e => e.ErrorCode));
         Assert.Contains(PermissionsErrorCode.InvalidLeastPrivilegeScheme, actualErrors.Select(e => e.ErrorCode));
         Assert.Contains("/me", actualErrors.Select(e => e.Path));
